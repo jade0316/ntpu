@@ -1,19 +1,28 @@
 import streamlit as st
 import os
 
-# --- 1. 基本設定 ---
-st.set_page_config(page_title="我的連載小說", layout="wide", page_icon="📚")
+# --- 修改這裡：使用更聰明的路徑鎖定法 ---
+# 取得目前這支程式 (app.py) 所在的絕對路徑
+current_dir = os.path.dirname(os.path.abspath(__file__))
 
-# 設定資料夾路徑
-ARTICLE_FOLDER = "articles"
-AI_DATA_FOLDER = "ai_data"
+# 告訴程式：articles 資料夾就在我旁邊
+ARTICLE_FOLDER = os.path.join(current_dir, "articles")
+AI_DATA_FOLDER = os.path.join(current_dir, "ai_data")
+# -------------------------------------
 
-# 確保資料夾存在，避免報錯
+st.set_page_config(page_title="所有爭議到最後都是一串數字", layout="wide", page_icon="📚")
+
+# (除錯用) 如果還是找不到，這行會告訴我們程式到底看到了什麼，方便抓漏
+# st.write(f"程式正在讀取這個路徑：{ARTICLE_FOLDER}") 
+
+# 確保資料夾存在
 if not os.path.exists(ARTICLE_FOLDER):
-    os.makedirs(ARTICLE_FOLDER)
+    # 如果真的找不到，不要只是報錯，顯示一下目前的路徑讓你知道錯在哪
+    st.error(f"⚠️ 找不到資料夾！程式試圖讀取：`{ARTICLE_FOLDER}`")
+    st.stop()
+
 if not os.path.exists(AI_DATA_FOLDER):
     os.makedirs(AI_DATA_FOLDER)
-
 # --- 2. 側邊欄：自動讀取章節列表 ---
 st.sidebar.title("📚 目錄")
 
@@ -71,4 +80,5 @@ with col2:
 
 # --- 5. 頁尾 ---
 st.markdown("---")
+
 st.caption("Designed with Python & Gemini | 僅供好友閱讀")
