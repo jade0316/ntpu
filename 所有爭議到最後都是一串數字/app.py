@@ -1,84 +1,88 @@
 import streamlit as st
 import os
 
-# --- 修改這裡：使用更聰明的路徑鎖定法 ---
-# 取得目前這支程式 (app.py) 所在的絕對路徑
+# --- 設定路徑 (絕對路徑法) ---
 current_dir = os.path.dirname(os.path.abspath(__file__))
-
-# 告訴程式：articles 資料夾就在我旁邊
 ARTICLE_FOLDER = os.path.join(current_dir, "articles")
 AI_DATA_FOLDER = os.path.join(current_dir, "ai_data")
-# -------------------------------------
 
 st.set_page_config(page_title="所有爭議到最後都是一串數字", layout="wide", page_icon="📚")
 
-# (除錯用) 如果還是找不到，這行會告訴我們程式到底看到了什麼，方便抓漏
-# st.write(f"程式正在讀取這個路徑：{ARTICLE_FOLDER}") 
-
-# 確保資料夾存在
-if not os.path.exists(ARTICLE_FOLDER):
-    # 如果真的找不到，不要只是報錯，顯示一下目前的路徑讓你知道錯在哪
-    st.error(f"⚠️ 找不到資料夾！程式試圖讀取：`{ARTICLE_FOLDER}`")
-    st.stop()
-
-if not os.path.exists(AI_DATA_FOLDER):
-    os.makedirs(AI_DATA_FOLDER)
-# --- 2. 側邊欄：自動讀取章節列表 ---
+# --- 側邊欄 ---
 st.sidebar.title("📚 目錄")
 
-# 讀取 articles 資料夾內的所有 txt 檔案，並排序
-# (建議檔名用數字開頭，如 01_開頭.txt，排序才會正確)
+# 1. 讀取並顯示章節列表
 files = sorted([f for f in os.listdir(ARTICLE_FOLDER) if f.endswith(".txt")])
-
 if not files:
-    st.error(f"⚠️ 找不到文章！請將 .txt 檔放入 '{ARTICLE_FOLDER}' 資料夾中。")
+    st.error("找不到文章檔")
     st.stop()
+selected_filename = st.sidebar.radio("章節", files, label_visibility="collapsed")
 
-# 讓使用者選擇章節
-selected_filename = st.sidebar.radio("請選擇章節：", files)
-
-# --- 3. 側邊欄：全書劇情脈絡 (AI) ---
 st.sidebar.markdown("---")
-st.sidebar.header("🧐 全書劇情提要")
-global_context_path = os.path.join(AI_DATA_FOLDER, "global_context.txt")
 
-if os.path.exists(global_context_path):
-    with open(global_context_path, "r", encoding="utf-8") as f:
-        st.sidebar.info(f.read())
-else:
-    st.sidebar.warning("尚無劇情大綱 (請先執行 AI 腳本)")
+# 2. 顯示全書劇情提要 (使用 Markdown 解決換行與編號問題)
+with st.sidebar.expander("🧐 全書劇情提要", expanded=True):
+    global_context_path = os.path.join(AI_DATA_FOLDER, "global_context.txt")
+    if os.path.exists(global_context_path):
+        with open(global_context_path, "r", encoding="utf-8") as f:
+            # 這裡改用 markdown，Streamlit 會自動幫您縮排和換行
+            st.markdown(f.read())
+    else:
+        st.caption("尚無資料")
 
-# --- 4. 主畫面：顯示內文與單篇分析 ---
-# 找出對應的 AI 分析檔案路徑 (假設檔名規則是 ch1.txt -> ch1_analysis.txt)
-analysis_filename = selected_filename.replace(".txt", "_analysis.txt")
-analysis_path = os.path.join(AI_DATA_FOLDER, analysis_filename)
+# 3. 顯示全書時間軸 (新功能)
+with st.sidebar.expander("📅 事件時間簡表", expanded=False):
+    st.caption("AI 自動整理的時間線")
+    # 讀取所有章節的 timeline 檔案並合併顯示
+    all_timelines = ""
+    for f in files:
+        timeline_path = os.path.join(AI_DATA_FOLDER, f.replace(".txt", "_timeline.txt"))
+        if os.path.exists(timeline_path):
+            with open(timeline_path, "r", encoding="utf-8") as t:
+                # 只保留表格內容，去除可能的標題重複
+                lines = t.readlines()
+                for line in lines:
+                    if "|" in line and "---" not in line and "時間" not in line:
+                         all_timelines += line
+    
+    if all_timelines:
+        # 手動加上表頭
+        table_md = "| 時間 | 事件 |\n|---|---|\n" + all_timelines
+        st.markdown(table_md)
+    else:
+        st.caption("尚無時間軸資料")
+
+
+# --- 主畫面 ---
+analysis_path = os.path.join(AI_DATA_FOLDER, selected_filename.replace(".txt", "_analysis.txt"))
 article_path = os.path.join(ARTICLE_FOLDER, selected_filename)
 
-# 讀取文章內容
 with open(article_path, "r", encoding="utf-8") as f:
     article_content = f.read()
 
-# 標題 (去除 .txt 副檔名)
 st.title(selected_filename.replace(".txt", ""))
 
-# 使用兩欄佈局：左邊寬 (內文)，右邊窄 (本章導讀)
 col1, col2 = st.columns([3, 1.2])
 
 with col1:
     st.markdown("### 📖 故事內文")
-    # 使用 container 來增加一點邊距美感
     with st.container(border=True):
-        st.markdown(article_content) # 如果文章是 Markdown 格式會自動渲染，純文字也沒問題
+        st.markdown(article_content)
 
 with col2:
-    st.markdown("### 🤖 本章 AI 導讀")
+    st.markdown("### 🤖 本章摘要")
     if os.path.exists(analysis_path):
         with open(analysis_path, "r", encoding="utf-8") as f:
             st.success(f.read())
     else:
-        st.caption("尚未生成本章分析 (請執行 AI 腳本)")
+        st.info("請執行 AI 腳本生成摘要")
 
-# --- 5. 頁尾 ---
+    # 這裡也可以顯示單章的時間軸
+    timeline_path = os.path.join(AI_DATA_FOLDER, selected_filename.replace(".txt", "_timeline.txt"))
+    if os.path.exists(timeline_path):
+        st.markdown("#### ⏳ 本章時間點")
+        with open(timeline_path, "r", encoding="utf-8") as f:
+            st.markdown(f.read())
+
 st.markdown("---")
-
-st.caption("Designed with Python & Gemini | 僅供好友閱讀")
+st.caption("Designed with Python & Gemini")
