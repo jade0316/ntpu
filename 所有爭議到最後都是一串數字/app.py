@@ -59,11 +59,13 @@ article_path = os.path.join(ARTICLE_FOLDER, selected_filename)
 
 with open(article_path, "r", encoding="utf-8") as f:
     article_content = f.read()
+# 🔥 修改重點在這裡：加入總標題 🔥
+st.title("所有爭議到最後都是一串數字") 
+st.subheader(f"第 {selected_filename.replace('.txt', '')} 章") # 這裡會顯示「第 01 章」
 
-st.title(selected_filename.replace(".txt", ""))
+st.markdown("---") # 加一條分隔線更美觀
 
 col1, col2 = st.columns([3, 1.2])
-
 with col1:
     st.markdown("### 📖 故事內文")
     with st.container(border=True):
@@ -86,3 +88,4 @@ with col2:
 
 st.markdown("---")
 st.caption("Designed with Python & Gemini")
+
